@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Hide scrollbar for category horizontal scroll */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Base resets & touch friendly defaults */
+html, body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}

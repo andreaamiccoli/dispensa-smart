@@ -1,0 +1,30 @@
+{
+  "short_name": "DispensaSmart",
+  "name": "Dispensa Smart - PWA",
+  "description": "Gestione dispensa domestica e lista spesa automatica offline-first.",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#090d16",
+  "theme_color": "#16a34a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "./"
+}
