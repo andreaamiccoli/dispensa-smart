@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 import UnitStepper from '../shared/UnitStepper';
-import CategoryBadge from '../shared/CategoryBadge';
 import { updatePantryStock, db } from '../../db/database';
 
 export default function PantryCard({ item, categoryColor, onEdit }) {
@@ -37,9 +36,8 @@ export default function PantryCard({ item, categoryColor, onEdit }) {
     }
   };
 
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = () => {
     if (touchStartX !== null && swipingLeft) {
-      // Rapid decrement on swipe left
       const nextVal = Math.max(0, item.currentStock - item.step);
       updatePantryStock(item.id, nextVal);
     }
@@ -52,59 +50,61 @@ export default function PantryCard({ item, categoryColor, onEdit }) {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`relative bg-white dark:bg-gray-800 rounded-xl p-4 border transition-all duration-200 shadow-sm hover:shadow-md ${
+      className={`relative flex flex-col justify-between bg-white dark:bg-gray-800 rounded-2xl p-3 border transition-all duration-200 shadow-xs hover:shadow-md ${
         isLowStock
-          ? 'border-amber-400 dark:border-amber-500/60 bg-amber-50/20 dark:bg-amber-950/10'
+          ? 'border-amber-400 dark:border-amber-500/60 bg-amber-50/30 dark:bg-amber-950/20'
           : 'border-gray-200 dark:border-gray-700'
-      } ${swipingLeft ? '-translate-x-3 bg-red-50 dark:bg-red-950/20' : ''}`}
+      } ${swipingLeft ? '-translate-x-2 bg-red-50 dark:bg-red-950/20' : ''}`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <CategoryBadge categoryName={item.category} colorTag={categoryColor} />
-            {isLowStock && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700">
-                <AlertTriangle className="w-3 h-3" /> Sotto soglia
-              </span>
-            )}
-          </div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-base truncate">
-            {item.name}
-          </h3>
-        </div>
+      {/* Top row: Indicator color tag + action buttons */}
+      <div className="flex items-center justify-between gap-1 mb-1.5">
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: categoryColor }}
+          title={item.category}
+        />
 
-        {/* Action icons */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5">
           <button
+            type="button"
             onClick={() => onEdit(item)}
-            className="p-2 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Modifica prodotto"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleDelete}
-            className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Elimina prodotto"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Stepper + Details */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-750">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <div>Min: <span className="font-medium text-gray-700 dark:text-gray-300">{item.minThreshold}</span></div>
-          <div>Max: <span className="font-medium text-gray-700 dark:text-gray-300">{item.fullStock || '-'}</span></div>
-        </div>
+      {/* Main product info */}
+      <div className="mb-3">
+        <h3 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-2 leading-tight mb-1" title={item.name}>
+          {item.name}
+        </h3>
 
-        {/* Stepper inline sempre visibile */}
+        {isLowStock && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded-md border border-amber-300 dark:border-amber-700">
+            <AlertTriangle className="w-2.5 h-2.5" /> Sotto soglia
+          </span>
+        )}
+      </div>
+
+      {/* Stepper +/- visibile e compatto */}
+      <div className="pt-2 border-t border-gray-100 dark:border-gray-750 flex flex-col items-center gap-1">
         <UnitStepper
           value={item.currentStock}
           step={item.step}
           unitType={item.unitType}
           onChange={handleStockChange}
+          compact={true}
         />
       </div>
     </div>

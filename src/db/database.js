@@ -155,7 +155,10 @@ export async function addShoppingItem(itemData) {
  * Elimina gli elementi spuntati/completati dalla lista spesa
  */
 export async function clearCompletedShoppingItems() {
-  return db.shoppingList.where('checked').equals(1).delete();
+  const completedIds = await db.shoppingList
+    .filter((item) => !!item.checked)
+    .primaryKeys();
+  return db.shoppingList.bulkDelete(completedIds);
 }
 
 /**
