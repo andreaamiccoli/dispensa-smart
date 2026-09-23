@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dispensa-smart-v3';
+const CACHE_NAME = 'dispensa-smart-v4';
 const APP_SHELL_ASSETS = [
   './',
   './index.html',

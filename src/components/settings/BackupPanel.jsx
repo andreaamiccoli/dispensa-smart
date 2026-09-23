@@ -176,7 +176,7 @@ export default function BackupPanel() {
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             placeholder="Nuova categoria..."
-            className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white"
+            className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <input
             type="color"
@@ -186,25 +186,28 @@ export default function BackupPanel() {
           />
           <button
             type="submit"
-            className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm"
+            aria-label="Aggiungi categoria"
+            className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm transition-colors"
           >
             <Plus className="w-5 h-5" />
           </button>
         </form>
 
-        <div className="space-y-2 max-h-48 overflow-y-auto">
+        <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
           {categories.map((cat) => (
             <div
               key={cat.id}
-              className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700"
+              className="flex items-center justify-between p-3 bg-slate-100 dark:bg-gray-700/80 rounded-xl border border-slate-200 dark:border-gray-600 shadow-2xs"
             >
-              <div className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: cat.colorTag }} />
-                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{cat.name}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/20 shrink-0" style={{ backgroundColor: cat.colorTag }} />
+                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{cat.name}</span>
               </div>
               <button
+                type="button"
                 onClick={() => deleteCategory(cat.id)}
-                className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                title="Elimina categoria"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
