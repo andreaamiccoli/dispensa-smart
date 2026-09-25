@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dispensa-smart-v5.1';
+const CACHE_NAME = 'dispensa-smart-v6';
 const APP_SHELL_ASSETS = [
   './',
   './index.html',
@@ -6,17 +6,18 @@ const APP_SHELL_ASSETS = [
   './icons/icon.svg',
 ];
 
-// Install Event: precache App Shell
+// Install Event: precache App Shell and skip waiting immediately
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Pre-caching App Shell');
       return cache.addAll(APP_SHELL_ASSETS);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activate Event: clean old caches
+// Activate Event: clean old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -32,45 +33,45 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event: Cache First strategy for App Shell assets
+// Fetch Event: Network First for HTML/Navigation, Stale-While-Revalidate for assets
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
-  // Skip chrome extensions or non-http protocols
   if (!url.protocol.startsWith('http')) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached version immediately
-        return cachedResponse;
-      }
-
-      // Fetch from network and cache the response
-      return fetch(event.request)
+  // Network First per le richieste di navigazione / HTML (per vedere subito le modifiche pubblicate)
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          // Check if valid response
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
           }
-
-          // Cache cloned response
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
+          return caches.match(event.request).then((cached) => cached || caches.match('./index.html'));
+        })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate per tutti gli altri asset (JS, CSS, Icone)
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
           }
-        });
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
     })
   );
 });
