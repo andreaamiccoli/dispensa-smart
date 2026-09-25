@@ -124,7 +124,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Nome Prodotto con Autocomplete */}
           <div className="relative">
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Nome Prodotto *
+              Nome Prodotto
             </label>
             <input
               type="text"
@@ -160,7 +160,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Categoria con Toggle Switch Orizzontale ON-OFF per Auto-Add spesa di fianco */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Categoria *
+              Categoria
             </label>
             <div className="flex items-center gap-2">
               <select
@@ -206,7 +206,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Unità di Misura */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Unità di misura *
+              Unità di misura
             </label>
             <div className="grid grid-cols-3 gap-2">
               {Object.entries(UNIT_CONFIG).map(([key, cfg]) => (
@@ -243,7 +243,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                Stock Pieno (Full)
+                Stock Pieno
               </label>
               <input
                 type="number"
@@ -260,7 +260,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                Soglia Minima (Auto-add)
+                Soglia Minima 
               </label>
               <input
                 type="number"
