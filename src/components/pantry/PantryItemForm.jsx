@@ -15,6 +15,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
   const [fullStock, setFullStock] = useState(initialItem?.fullStock ?? 2);
   const [minThreshold, setMinThreshold] = useState(initialItem?.minThreshold ?? 1);
   const [step, setStep] = useState(initialItem?.step ?? 1);
+  const [autoAdd, setAutoAdd] = useState(initialItem?.autoAdd !== false);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -65,6 +66,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
     setMinThreshold(sug.minThreshold);
     setStep(sug.step);
     setCurrentStock(sug.fullStock);
+    setAutoAdd(sug.autoAdd !== false);
     setShowSuggestions(false);
   };
 
@@ -81,6 +83,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
         fullStock: Number(fullStock),
         minThreshold: Number(minThreshold),
         step: Number(step),
+        autoAdd: autoAdd,
         updatedAt: new Date().toISOString(),
       });
     } else {
@@ -92,6 +95,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
         fullStock: Number(fullStock),
         minThreshold: Number(minThreshold),
         step: Number(step),
+        autoAdd: autoAdd,
       });
     }
 
@@ -153,23 +157,50 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
             )}
           </div>
 
-          {/* Categoria */}
+          {/* Categoria con Toggle Switch Orizzontale ON-OFF per Auto-Add spesa di fianco */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
               Categoria *
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-            >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-              {categories.length === 0 && <option value="Altro">Altro</option>}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="flex-1 px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-emerald-500 focus:outline-none min-w-0"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+                {categories.length === 0 && <option value="Altro">Altro</option>}
+              </select>
+
+              {/* Toggle Switch Orizzontale On-Off */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shrink-0 h-[46px]">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  Auto-add
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoAdd}
+                  onClick={() => setAutoAdd(!autoAdd)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    autoAdd ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      autoAdd ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-xs font-extrabold w-6 ${autoAdd ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                  {autoAdd ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Unità di Misura */}

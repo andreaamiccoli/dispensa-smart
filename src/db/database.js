@@ -25,8 +25,8 @@ export async function updatePantryStock(id, newStock) {
       updatedAt: now,
     });
 
-    // Controllo soglia atomico nella transazione
-    if (sanitizedStock <= item.minThreshold) {
+    // Controllo soglia atomico nella transazione (se autoAdd non è disabilitato)
+    if (item.autoAdd !== false && sanitizedStock <= item.minThreshold) {
       // Verifica se esiste già un item attivo nella lista della spesa per questo prodotto
       const existingActiveShoppingItem = await db.shoppingList
         .where('pantryItemId')
@@ -111,14 +111,15 @@ export async function addPantryItem(itemData) {
       fullStock: Number(itemData.fullStock ?? itemData.currentStock ?? 1),
       minThreshold: Number(itemData.minThreshold ?? 1),
       step: Number(itemData.step ?? 1),
+      autoAdd: itemData.autoAdd !== false,
       createdAt: now,
       updatedAt: now,
     };
 
     const id = await db.pantryItems.add(newItem);
 
-    // Esegui controllo soglia immediato
-    if (newItem.currentStock <= newItem.minThreshold) {
+    // Esegui controllo soglia immediato se autoAdd è attivo
+    if (newItem.autoAdd !== false && newItem.currentStock <= newItem.minThreshold) {
       const quantityToBuy = Math.max(1, newItem.fullStock - newItem.currentStock);
       await db.shoppingList.add({
         pantryItemId: id,
