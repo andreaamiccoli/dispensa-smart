@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Upload, Database, RefreshCw, Trash2, Plus, Tag } from 'lucide-react';
+import { Download, Upload, Database, RefreshCw, Trash2, Plus, Tag, ZoomIn, ZoomOut, Eye } from 'lucide-react';
 import { db, seedInitialData } from '../../db/database';
 import { useCategories } from '../../hooks/useCategories';
 
@@ -8,6 +8,18 @@ export default function BackupPanel() {
   const { categories, addCategory, deleteCategory } = useCategories();
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#3b82f6');
+
+  // Zoom Testo & Accessibilità
+  const [fontZoom, setFontZoom] = useState(() => {
+    return Number(localStorage.getItem('dispensa_font_zoom') || 100);
+  });
+
+  const handleZoomChange = (newZoom) => {
+    const clamped = Math.min(150, Math.max(90, newZoom));
+    setFontZoom(clamped);
+    localStorage.setItem('dispensa_font_zoom', String(clamped));
+    document.documentElement.style.fontSize = `${clamped}%`;
+  };
 
   // Esporta il backup in formato JSON
   const handleExportBackup = async () => {
@@ -112,6 +124,64 @@ export default function BackupPanel() {
           </button>
         </div>
       )}
+
+      {/* Accessibilità e Zoom Testo */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-xs">
+        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+          <Eye className="w-5 h-5 text-indigo-500" /> Accessibilità & Zoom Testo
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Aumenta o diminuisci gradualmente la dimensione dei testi dell’app per facilitare la lettura.
+        </p>
+
+        {/* Stepper Zoom */}
+        <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-750 p-2 rounded-xl border border-gray-200 dark:border-gray-700 mb-3">
+          <button
+            type="button"
+            onClick={() => handleZoomChange(fontZoom - 10)}
+            disabled={fontZoom <= 90}
+            className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-xs hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Riduci dimensione testo"
+          >
+            <ZoomOut className="w-5 h-5" />
+          </button>
+
+          <div className="text-center">
+            <span className="text-lg font-black text-gray-900 dark:text-white">{fontZoom}%</span>
+            <span className="block text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase">
+              {fontZoom <= 100 ? 'Standard' : fontZoom <= 120 ? 'Grande' : 'Molto Grande'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleZoomChange(fontZoom + 10)}
+            disabled={fontZoom >= 150}
+            className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-xs hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Aumenta dimensione testo"
+          >
+            <ZoomIn className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Preset rapidi */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {[100, 115, 130, 145].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => handleZoomChange(preset)}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${
+                fontZoom === preset
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {preset}%
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Backup & Data Protection */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-xs">

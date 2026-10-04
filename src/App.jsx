@@ -10,6 +10,10 @@ export default function App() {
   useEffect(() => {
     // Inizializza le categorie di default al primo avvio se vuote
     seedInitialData();
+
+    // Applica lo zoom del testo salvato nelle impostazioni
+    const savedZoom = localStorage.getItem('dispensa_font_zoom') || '100';
+    document.documentElement.style.fontSize = `${savedZoom}%`;
   }, []);
 
   return (

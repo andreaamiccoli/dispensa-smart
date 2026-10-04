@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 import UnitStepper from '../shared/UnitStepper';
-import { updatePantryStock, db } from '../../db/database';
+import { updatePantryStock, deletePantryItem } from '../../db/database';
 
 export default function PantryCard({ item, categoryColor, onEdit }) {
   const [touchStartX, setTouchStartX] = useState(null);
@@ -16,7 +16,7 @@ export default function PantryCard({ item, categoryColor, onEdit }) {
   const handleDelete = async (e) => {
     e.stopPropagation();
     if (confirm(`Eliminare "${item.name}" dalla dispensa?`)) {
-      await db.pantryItems.delete(item.id);
+      await deletePantryItem(item.id);
     }
   };
 

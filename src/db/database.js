@@ -10,7 +10,7 @@ db.version(1).stores({
 
 /**
  * Aggiorna atomicamente lo stock di un prodotto in dispensa e gestisce l'auto-add
- * alla lista della spesa se currentStock <= minThreshold.
+ * o l'auto-remove dalla lista della spesa.
  */
 export async function updatePantryStock(id, newStock) {
   return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
@@ -25,22 +25,20 @@ export async function updatePantryStock(id, newStock) {
       updatedAt: now,
     });
 
+    const existingActiveShoppingItem = await db.shoppingList
+      .where('pantryItemId')
+      .equals(id)
+      .filter((si) => !si.checked && si.source === 'auto')
+      .first();
+
     // Controllo soglia atomico nella transazione (se autoAdd non è disabilitato)
     if (item.autoAdd !== false && sanitizedStock <= item.minThreshold) {
-      // Verifica se esiste già un item attivo nella lista della spesa per questo prodotto
-      const existingActiveShoppingItem = await db.shoppingList
-        .where('pantryItemId')
-        .equals(id)
-        .filter((si) => !si.checked)
-        .first();
+      const quantityToBuy = Math.max(
+        1,
+        (item.fullStock || item.minThreshold || 1) - sanitizedStock
+      );
 
       if (!existingActiveShoppingItem) {
-        // Calcola la quantità da acquistare (differenza rispetto a fullStock o default step)
-        const quantityToBuy = Math.max(
-          1,
-          (item.fullStock || item.minThreshold || 1) - sanitizedStock
-        );
-
         await db.shoppingList.add({
           pantryItemId: item.id,
           name: item.name,
@@ -50,6 +48,18 @@ export async function updatePantryStock(id, newStock) {
           addedAt: now,
           source: 'auto',
         });
+      } else {
+        // Aggiorna la quantità da acquistare per riflettere il nuovo deficit
+        await db.shoppingList.update(existingActiveShoppingItem.id, {
+          quantity: quantityToBuy,
+          name: item.name,
+          unitType: item.unitType,
+        });
+      }
+    } else {
+      // Se lo stock è ritornato sopra la soglia o l'autoAdd è stato disattivato, rimuovi l'item automatico non completato
+      if (existingActiveShoppingItem) {
+        await db.shoppingList.delete(existingActiveShoppingItem.id);
       }
     }
   });
@@ -64,6 +74,24 @@ export async function adjustPantryStock(id, delta) {
     if (!item) return;
     const targetStock = item.currentStock + delta;
     await updatePantryStock(id, targetStock);
+  });
+}
+
+/**
+ * Elimina un prodotto dalla dispensa e rimuove automaticamente gli elementi correlati nella lista spesa.
+ */
+export async function deletePantryItem(id) {
+  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+    await db.pantryItems.delete(id);
+    const relatedShoppingItems = await db.shoppingList
+      .where('pantryItemId')
+      .equals(id)
+      .filter((si) => !si.checked)
+      .primaryKeys();
+
+    if (relatedShoppingItems.length > 0) {
+      await db.shoppingList.bulkDelete(relatedShoppingItems);
+    }
   });
 }
 
@@ -133,6 +161,29 @@ export async function addPantryItem(itemData) {
     }
 
     return id;
+  });
+}
+
+/**
+ * Aggiorna un prodotto in dispensa e ri-valuta la lista della spesa.
+ */
+export async function updatePantryItemDetails(id, itemData) {
+  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+    const now = new Date().toISOString();
+    const updatedFields = {
+      name: itemData.name.trim(),
+      category: itemData.category,
+      unitType: itemData.unitType,
+      currentStock: Number(itemData.currentStock),
+      fullStock: Number(itemData.fullStock),
+      minThreshold: Number(itemData.minThreshold),
+      step: Number(itemData.step),
+      autoAdd: itemData.autoAdd !== false,
+      updatedAt: now,
+    };
+
+    await db.pantryItems.update(id, updatedFields);
+    await updatePantryStock(id, updatedFields.currentStock);
   });
 }
 

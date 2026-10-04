@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, addPantryItem } from '../../db/database';
+import { db, addPantryItem, updatePantryItemDetails } from '../../db/database';
 import { useCategories } from '../../hooks/useCategories';
 import { UNIT_CONFIG, UNIT_TYPES } from '../../utils/unitHelpers';
 
@@ -75,7 +75,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
     if (!name.trim()) return;
 
     if (initialItem) {
-      await db.pantryItems.update(initialItem.id, {
+      await updatePantryItemDetails(initialItem.id, {
         name: name.trim(),
         category,
         unitType,
@@ -84,7 +84,6 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
         minThreshold: Number(minThreshold),
         step: Number(step),
         autoAdd: autoAdd,
-        updatedAt: new Date().toISOString(),
       });
     } else {
       await addPantryItem({

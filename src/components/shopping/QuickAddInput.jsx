@@ -49,7 +49,7 @@ export default function QuickAddInput() {
 
     await addShoppingItem({
       name: name.trim(),
-      quantity: Number(quantity),
+      quantity: Math.max(1, Number(quantity) || 1),
       unitType,
       pantryItemId: selectedPantryItemId,
       source: 'manual',
@@ -64,8 +64,25 @@ export default function QuickAddInput() {
 
   return (
     <div className="relative mb-4">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <div className="relative flex-1">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        {/* Riquadro Quantità a sinistra */}
+        <input
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          placeholder="1"
+          aria-label="Quantità da acquistare"
+          className="w-16 px-2 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center font-bold text-base text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs shrink-0"
+        />
+
+        {/* Separatore X tra quantità e testo */}
+        <span className="font-black text-gray-400 dark:text-gray-500 text-sm select-none shrink-0">
+          X
+        </span>
+
+        {/* Input Testo Prodotto con Autocomplete */}
+        <div className="relative flex-1 min-w-0">
           <input
             type="text"
             value={name}
@@ -95,6 +112,7 @@ export default function QuickAddInput() {
           )}
         </div>
 
+        {/* Pulsante aggiunta */}
         <button
           type="submit"
           aria-label="Aggiungi alla lista"
