@@ -8,6 +8,14 @@ db.version(1).stores({
   categories: '++id, &name, order',
 });
 
+// Schema v2 per supporto sotto-cartelle nidificate
+db.version(2).stores({
+  pantryItems: '++id, name, category, subFolderId, unitType, currentStock, minThreshold, createdAt',
+  shoppingList: '++id, pantryItemId, name, checked, source, addedAt',
+  categories: '++id, &name, order',
+  subFolders: '++id, name, category, parentSubFolderId, createdAt',
+});
+
 /**
  * Aggiorna atomicamente lo stock di un prodotto in dispensa e gestisce l'auto-add
  * o l'auto-remove dalla lista della spesa.
@@ -49,7 +57,6 @@ export async function updatePantryStock(id, newStock) {
           source: 'auto',
         });
       } else {
-        // Aggiorna la quantità da acquistare per riflettere il nuovo deficit
         await db.shoppingList.update(existingActiveShoppingItem.id, {
           quantity: quantityToBuy,
           name: item.name,
@@ -57,7 +64,6 @@ export async function updatePantryStock(id, newStock) {
         });
       }
     } else {
-      // Se lo stock è ritornato sopra la soglia o l'autoAdd è stato disattivato, rimuovi l'item automatico non completato
       if (existingActiveShoppingItem) {
         await db.shoppingList.delete(existingActiveShoppingItem.id);
       }
@@ -66,7 +72,7 @@ export async function updatePantryStock(id, newStock) {
 }
 
 /**
- * Incrementa o decrementa lo stock corrente di un delta (es. +step o -step)
+ * Incrementa o decrementa lo stock corrente di un delta
  */
 export async function adjustPantryStock(id, delta) {
   return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
@@ -97,7 +103,6 @@ export async function deletePantryItem(id) {
 
 /**
  * Check/Uncheck di un elemento della lista spesa.
- * Se viene checkato e ha un pantryItemId collegato, aggiorna/ripopola lo stock della dispensa.
  */
 export async function toggleShoppingItem(shoppingItemId, isChecked) {
   return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
@@ -106,11 +111,9 @@ export async function toggleShoppingItem(shoppingItemId, isChecked) {
 
     await db.shoppingList.update(shoppingItemId, { checked: isChecked });
 
-    // Se spuntato (completato) e collegato a un elemento in dispensa
     if (isChecked && sItem.pantryItemId) {
       const pItem = await db.pantryItems.get(sItem.pantryItemId);
       if (pItem) {
-        // Usa fullStock se configurato, altrimenti somma la quantità acquistata
         const newStock = pItem.fullStock && pItem.fullStock > 0
           ? pItem.fullStock
           : pItem.currentStock + sItem.quantity;
@@ -126,7 +129,7 @@ export async function toggleShoppingItem(shoppingItemId, isChecked) {
 }
 
 /**
- * Aggiunge un prodotto in dispensa ed esegue subito il controllo soglia atomico
+ * Aggiunge un nuovo prodotto in dispensa
  */
 export async function addPantryItem(itemData) {
   return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
@@ -134,6 +137,7 @@ export async function addPantryItem(itemData) {
     const newItem = {
       name: itemData.name.trim(),
       category: itemData.category || 'Altro',
+      subFolderId: itemData.subFolderId ? Number(itemData.subFolderId) : null,
       unitType: itemData.unitType || 'unit',
       currentStock: Number(itemData.currentStock ?? 0),
       fullStock: Number(itemData.fullStock ?? itemData.currentStock ?? 1),
@@ -146,7 +150,6 @@ export async function addPantryItem(itemData) {
 
     const id = await db.pantryItems.add(newItem);
 
-    // Esegui controllo soglia immediato se autoAdd è attivo
     if (newItem.autoAdd !== false && newItem.currentStock <= newItem.minThreshold) {
       const quantityToBuy = Math.max(1, newItem.fullStock - newItem.currentStock);
       await db.shoppingList.add({
@@ -165,7 +168,7 @@ export async function addPantryItem(itemData) {
 }
 
 /**
- * Aggiorna un prodotto in dispensa e ri-valuta la lista della spesa.
+ * Aggiorna i dettagli di un prodotto in dispensa
  */
 export async function updatePantryItemDetails(id, itemData) {
   return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
@@ -173,6 +176,7 @@ export async function updatePantryItemDetails(id, itemData) {
     const updatedFields = {
       name: itemData.name.trim(),
       category: itemData.category,
+      subFolderId: itemData.subFolderId ? Number(itemData.subFolderId) : null,
       unitType: itemData.unitType,
       currentStock: Number(itemData.currentStock),
       fullStock: Number(itemData.fullStock),
@@ -184,6 +188,41 @@ export async function updatePantryItemDetails(id, itemData) {
 
     await db.pantryItems.update(id, updatedFields);
     await updatePantryStock(id, updatedFields.currentStock);
+  });
+}
+
+/**
+ * Gestione Sotto-cartelle (subFolders)
+ */
+export async function addSubFolder({ name, category, parentSubFolderId = null }) {
+  const now = new Date().toISOString();
+  return db.subFolders.add({
+    name: name.trim(),
+    category: category || 'Altro',
+    parentSubFolderId: parentSubFolderId ? Number(parentSubFolderId) : null,
+    createdAt: now,
+  });
+}
+
+export async function updateSubFolder(id, { name }) {
+  return db.subFolders.update(id, { name: name.trim() });
+}
+
+export async function deleteSubFolder(id) {
+  return db.transaction('rw', db.pantryItems, db.shoppingList, db.subFolders, async () => {
+    // Trova tutte le sotto-cartelle figlie ed eliminale ricorsivamente
+    const childFolders = await db.subFolders.where('parentSubFolderId').equals(id).toArray();
+    for (const child of childFolders) {
+      await deleteSubFolder(child.id);
+    }
+
+    // Trova i prodotti contenuti in questa cartella ed eliminali (o scollega)
+    const itemsInFolder = await db.pantryItems.where('subFolderId').equals(id).toArray();
+    for (const item of itemsInFolder) {
+      await deletePantryItem(item.id);
+    }
+
+    await db.subFolders.delete(id);
   });
 }
 
@@ -220,17 +259,71 @@ export async function seedInitialData() {
   const countCat = await db.categories.count();
   if (countCat === 0) {
     await db.categories.bulkAdd([
-      { name: 'Freschi & Latticini', colorTag: '#3b82f6', order: 1 },
-      { name: 'Colazione & Dolci', colorTag: '#f59e0b', order: 2 },
-      { name: 'Pasta & Riso', colorTag: '#ef4444', order: 3 },
-      { name: 'Bevande', colorTag: '#10b981', order: 4 },
-      { name: 'Igiene & Casa', colorTag: '#8b5cf6', order: 5 },
+      { name: 'Carne', colorTag: '#ef4444', order: 1 },
+      { name: 'Freschi & Latticini', colorTag: '#3b82f6', order: 2 },
+      { name: 'Colazione & Dolci', colorTag: '#f59e0b', order: 3 },
+      { name: 'Pasta & Riso', colorTag: '#10b981', order: 4 },
+      { name: 'Bevande', colorTag: '#06b6d4', order: 5 },
+      { name: 'Igiene & Casa', colorTag: '#8b5cf6', order: 6 },
       { name: 'Altro', colorTag: '#6b7280', order: 99 },
     ]);
   }
 
   const countPantry = await db.pantryItems.count();
   if (countPantry === 0) {
+    // Esempio dell'utente:
+    // Carne -> Pollo (sotto-cartella) -> Alette di pollo, Cotolette
+    // Carne -> Coscia di maiale, Hamburger di manzo
+    const polloFolderId = await addSubFolder({
+      name: 'Pollo',
+      category: 'Carne',
+      parentSubFolderId: null,
+    });
+
+    await addPantryItem({
+      name: 'Alette di pollo',
+      category: 'Carne',
+      subFolderId: polloFolderId,
+      unitType: 'unit',
+      currentStock: 6,
+      fullStock: 12,
+      minThreshold: 4,
+      step: 2,
+    });
+
+    await addPantryItem({
+      name: 'Cotolette di pollo',
+      category: 'Carne',
+      subFolderId: polloFolderId,
+      unitType: 'unit',
+      currentStock: 2,
+      fullStock: 4,
+      minThreshold: 2,
+      step: 1,
+    });
+
+    await addPantryItem({
+      name: 'Coscia di maiale',
+      category: 'Carne',
+      subFolderId: null,
+      unitType: 'unit',
+      currentStock: 1,
+      fullStock: 3,
+      minThreshold: 1,
+      step: 1,
+    });
+
+    await addPantryItem({
+      name: 'Hamburger di manzo',
+      category: 'Carne',
+      subFolderId: null,
+      unitType: 'unit',
+      currentStock: 4,
+      fullStock: 6,
+      minThreshold: 2,
+      step: 2,
+    });
+
     await addPantryItem({
       name: 'Latte Intero',
       category: 'Freschi & Latticini',
@@ -238,36 +331,6 @@ export async function seedInitialData() {
       currentStock: 500,
       fullStock: 2000,
       minThreshold: 1000,
-      step: 250,
-    });
-
-    await addPantryItem({
-      name: 'Pasta Barilla Spaghettoni',
-      category: 'Pasta & Riso',
-      unitType: 'g',
-      currentStock: 1500,
-      fullStock: 2000,
-      minThreshold: 500,
-      step: 500,
-    });
-
-    await addPantryItem({
-      name: 'Uova Fresche',
-      category: 'Freschi & Latticini',
-      unitType: 'unit',
-      currentStock: 2,
-      fullStock: 6,
-      minThreshold: 3,
-      step: 1,
-    });
-
-    await addPantryItem({
-      name: 'Caffè in Polvere',
-      category: 'Colazione & Dolci',
-      unitType: 'g',
-      currentStock: 250,
-      fullStock: 500,
-      minThreshold: 100,
       step: 250,
     });
   }

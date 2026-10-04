@@ -5,11 +5,18 @@ import { db, addPantryItem, updatePantryItemDetails } from '../../db/database';
 import { useCategories } from '../../hooks/useCategories';
 import { UNIT_CONFIG, UNIT_TYPES } from '../../utils/unitHelpers';
 
-export default function PantryItemForm({ initialItem = null, onClose, onSaved }) {
+export default function PantryItemForm({
+  initialItem = null,
+  defaultCategory = '',
+  defaultSubFolderId = null,
+  onClose,
+  onSaved,
+}) {
   const { categories } = useCategories();
 
   const [name, setName] = useState(initialItem?.name || '');
-  const [category, setCategory] = useState(initialItem?.category || '');
+  const [category, setCategory] = useState(initialItem?.category || defaultCategory || '');
+  const [subFolderId, setSubFolderId] = useState(initialItem?.subFolderId ?? defaultSubFolderId ?? null);
   const [unitType, setUnitType] = useState(initialItem?.unitType || 'unit');
   const [currentStock, setCurrentStock] = useState(initialItem?.currentStock ?? 1);
   const [fullStock, setFullStock] = useState(initialItem?.fullStock ?? 2);
@@ -25,9 +32,9 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
 
   useEffect(() => {
     if (!category && categories.length > 0) {
-      setCategory(categories[0].name);
+      setCategory(defaultCategory || categories[0].name);
     }
-  }, [categories, category]);
+  }, [categories, category, defaultCategory]);
 
   // Aggiorna i default dei numerici quando cambia unitType se è un nuovo item
   const handleUnitTypeChange = (newUnit) => {
@@ -78,6 +85,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
       await updatePantryItemDetails(initialItem.id, {
         name: name.trim(),
         category,
+        subFolderId,
         unitType,
         currentStock: Number(currentStock),
         fullStock: Number(fullStock),
@@ -89,6 +97,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
       await addPantryItem({
         name,
         category: category || (categories[0]?.name ?? 'Altro'),
+        subFolderId,
         unitType,
         currentStock: Number(currentStock),
         fullStock: Number(fullStock),
@@ -111,6 +120,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
             {initialItem ? 'Modifica Prodotto' : 'Nuovo Prodotto in Dispensa'}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
@@ -123,7 +133,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Nome Prodotto con Autocomplete */}
           <div className="relative">
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Nome Prodotto
+              Nome Prodotto *
             </label>
             <input
               type="text"
@@ -131,7 +141,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
               value={name}
               onChange={handleNameChange}
               onFocus={() => name.length >= 2 && setSuggestions(existingItems.filter(i => i.name.toLowerCase().includes(name.toLowerCase().trim())))}
-              placeholder="es. Latte Intero, Pasta Spaghettoni..."
+              placeholder="es. Alette di pollo, Cotolette..."
               className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
 
@@ -159,7 +169,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Categoria con Toggle Switch Orizzontale ON-OFF per Auto-Add spesa di fianco */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Categoria
+              Categoria *
             </label>
             <div className="flex items-center gap-2">
               <select
@@ -205,7 +215,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           {/* Unità di Misura */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-              Unità di misura
+              Unità di misura *
             </label>
             <div className="grid grid-cols-3 gap-2">
               {Object.entries(UNIT_CONFIG).map(([key, cfg]) => (
@@ -242,7 +252,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                Stock Pieno
+                Stock Pieno (Full)
               </label>
               <input
                 type="number"
@@ -259,7 +269,7 @@ export default function PantryItemForm({ initialItem = null, onClose, onSaved })
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                Soglia Minima 
+                Soglia Minima (Auto-add)
               </label>
               <input
                 type="number"
