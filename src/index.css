@@ -13,6 +13,7 @@
 
 /* Base resets & touch friendly defaults */
 html, body {
-  touch-action: manipulation;
+  touch-action: pan-y pinch-zoom;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-x: none; /* Disabilita lo swipe di navigazione cronologia nativo del browser */
 }

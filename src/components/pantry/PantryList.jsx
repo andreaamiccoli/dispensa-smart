@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Search, PackagePlus, Sparkles, X, ArrowLeft, FolderPlus, Plus, ChevronRight } from 'lucide-react';
 import { usePantryItems } from '../../hooks/usePantryItems';
 import { useCategories } from '../../hooks/useCategories';
@@ -21,6 +21,11 @@ export default function PantryList() {
 
   const currentSubFolder = subFolderStack.length > 0 ? subFolderStack[subFolderStack.length - 1] : null;
 
+  // Touch gesture per iOS Back Swipe (da sinistra verso destra)
+  const touchStartXRef = useRef(null);
+  const touchStartYRef = useRef(null);
+  const [swipeBackProgress, setSwipeBackProgress] = useState(0); // da 0 a 100 per feedback visivo
+
   // Form Modals
   const [editingItem, setEditingItem] = useState(null);
   const [movingItem, setMovingItem] = useState(null);
@@ -31,6 +36,8 @@ export default function PantryList() {
   const { items } = usePantryItems(searchQuery, activeCategory?.name || '');
   const { categories } = useCategories();
   const { subFolders } = useSubFolders(activeCategory?.name || null, currentSubFolder?.id || null);
+
+  const canGoBack = Boolean(activeCategory || subFolderStack.length > 0);
 
   // Filtra i prodotti per il livello corrente se non stiamo cercando
   const currentLevelItems = searchQuery.trim()
@@ -62,6 +69,49 @@ export default function PantryList() {
     }
   };
 
+  // Gestione Swipe da sinistra verso destra (Edge swipe iOS nativo per tornare indietro)
+  const handleTouchStart = (e) => {
+    if (!canGoBack) return;
+    const touch = e.touches[0];
+    // Rileva swipe a partire dal bordo sinistro (primi 65px dello schermo)
+    if (touch.clientX <= 65) {
+      touchStartXRef.current = touch.clientX;
+      touchStartYRef.current = touch.clientY;
+    } else {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartXRef.current === null) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartXRef.current;
+    const deltaY = Math.abs(touch.clientY - touchStartYRef.current);
+
+    // Se il movimento è prevalentemente orizzontale verso destra
+    if (deltaX > 10 && deltaX > deltaY) {
+      const progress = Math.min(100, Math.max(0, (deltaX / 120) * 100));
+      setSwipeBackProgress(progress);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current !== null) {
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartXRef.current;
+      const deltaY = Math.abs(touch.clientY - touchStartYRef.current);
+
+      // Soglia di trigger: swipe di almeno 70px verso destra
+      if (deltaX >= 70 && deltaX > deltaY * 1.2) {
+        handleNavigateBack();
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    setSwipeBackProgress(0);
+  };
+
   const handleOpenNewItemForm = () => {
     setEditingItem(null);
     setIsFabMenuOpen(false);
@@ -91,15 +141,32 @@ export default function PantryList() {
   };
 
   return (
-    <div className="pb-28 max-w-md mx-auto px-4 pt-4">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="pb-28 max-w-md mx-auto px-4 pt-4 min-h-screen relative select-none"
+    >
+      {/* Indicatore visivo iOS swipe back sulla parte sinistra dello schermo */}
+      {swipeBackProgress > 0 && canGoBack && (
+        <div
+          className="fixed left-0 top-0 bottom-0 z-50 pointer-events-none flex items-center pl-2 transition-opacity"
+          style={{ opacity: Math.min(1, swipeBackProgress / 50) }}
+        >
+          <div className="w-10 h-10 rounded-full bg-emerald-600/90 text-white flex items-center justify-center shadow-lg backdrop-blur-md">
+            <ArrowLeft className="w-5 h-5 stroke-[3]" />
+          </div>
+        </div>
+      )}
+
       {/* Header principale con Pulsante Indietro e Lente di Ingrandimento */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          {(activeCategory || subFolderStack.length > 0) && (
+          {canGoBack && (
             <button
               type="button"
               onClick={handleNavigateBack}
-              className="p-2 -ml-1 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-colors shrink-0"
+              className="p-2 -ml-1 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-colors shrink-0 active:scale-95"
               aria-label="Torna indietro"
             >
               <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
@@ -130,7 +197,7 @@ export default function PantryList() {
       </div>
 
       {/* Breadcrumb del percorso corrente */}
-      {(activeCategory || subFolderStack.length > 0) && !isSearchOpen && (
+      {canGoBack && !isSearchOpen && (
         <div className="flex items-center gap-1 mb-4 text-xs font-bold text-gray-500 dark:text-gray-400 overflow-x-auto pb-1 no-scrollbar">
           <button
             type="button"
