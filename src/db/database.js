@@ -16,6 +16,33 @@ db.version(2).stores({
   subFolders: '++id, name, category, parentSubFolderId, createdAt',
 });
 
+// Schema v3 per associare esplicitamente category a shoppingList (anche per item manuali)
+db.version(3).stores({
+  pantryItems: '++id, name, category, subFolderId, unitType, currentStock, minThreshold, createdAt',
+  shoppingList: '++id, pantryItemId, name, category, checked, source, addedAt',
+  categories: '++id, &name, order',
+  subFolders: '++id, name, category, parentSubFolderId, createdAt',
+}).upgrade(async (tx) => {
+  // Popola la categoria per gli elementi della lista della spesa esistenti se mancante
+  const shoppingItems = await tx.table('shoppingList').toArray();
+  const pantryItems = await tx.table('pantryItems').toArray();
+  const pantryMap = new Map(pantryItems.map((p) => [p.id, p]));
+
+  for (const sItem of shoppingItems) {
+    if (!sItem.category) {
+      if (sItem.pantryItemId && pantryMap.has(sItem.pantryItemId)) {
+        await tx.table('shoppingList').update(sItem.id, {
+          category: pantryMap.get(sItem.pantryItemId).category,
+        });
+      } else {
+        await tx.table('shoppingList').update(sItem.id, {
+          category: 'Altro',
+        });
+      }
+    }
+  }
+});
+
 /**
  * Aggiorna atomicamente lo stock di un prodotto in dispensa e gestisce l'auto-add
  * o l'auto-remove dalla lista della spesa.
@@ -50,6 +77,7 @@ export async function updatePantryStock(id, newStock) {
         await db.shoppingList.add({
           pantryItemId: item.id,
           name: item.name,
+          category: item.category || 'Altro',
           unitType: item.unitType,
           quantity: quantityToBuy,
           checked: false,
@@ -60,6 +88,7 @@ export async function updatePantryStock(id, newStock) {
         await db.shoppingList.update(existingActiveShoppingItem.id, {
           quantity: quantityToBuy,
           name: item.name,
+          category: item.category || 'Altro',
           unitType: item.unitType,
         });
       }
@@ -155,6 +184,7 @@ export async function addPantryItem(itemData) {
       await db.shoppingList.add({
         pantryItemId: id,
         name: newItem.name,
+        category: newItem.category,
         unitType: newItem.unitType,
         quantity: quantityToBuy,
         checked: false,
@@ -187,6 +217,16 @@ export async function updatePantryItemDetails(id, itemData) {
     };
 
     await db.pantryItems.update(id, updatedFields);
+
+    // Se cambia categoria o nome, aggiorna anche le voci della shoppingList collegate
+    const relatedShoppingItems = await db.shoppingList.where('pantryItemId').equals(id).toArray();
+    for (const rel of relatedShoppingItems) {
+      await db.shoppingList.update(rel.id, {
+        category: updatedFields.category,
+        name: updatedFields.name,
+      });
+    }
+
     await updatePantryStock(id, updatedFields.currentStock);
   });
 }
@@ -234,6 +274,7 @@ export async function addShoppingItem(itemData) {
   return db.shoppingList.add({
     pantryItemId: itemData.pantryItemId || null,
     name: itemData.name.trim(),
+    category: itemData.category || 'Altro',
     unitType: itemData.unitType || 'unit',
     quantity: Number(itemData.quantity || 1),
     checked: false,
@@ -271,9 +312,6 @@ export async function seedInitialData() {
 
   const countPantry = await db.pantryItems.count();
   if (countPantry === 0) {
-    // Esempio dell'utente:
-    // Carne -> Pollo (sotto-cartella) -> Alette di pollo, Cotolette
-    // Carne -> Coscia di maiale, Hamburger di manzo
     const polloFolderId = await addSubFolder({
       name: 'Pollo',
       category: 'Carne',

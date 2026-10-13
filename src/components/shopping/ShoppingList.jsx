@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { ShoppingBag, CheckCheck, Trash2 } from 'lucide-react';
 import { useShoppingList } from '../../hooks/useShoppingList';
+import { useCategories } from '../../hooks/useCategories';
 import ShoppingListItem from './ShoppingListItem';
 import QuickAddInput from './QuickAddInput';
 import { clearCompletedShoppingItems } from '../../db/database';
 
 export default function ShoppingList() {
   const { activeItems, completedItems, isLoading } = useShoppingList();
+  const { categories } = useCategories();
   const [showCompleted, setShowCompleted] = useState(true);
 
   const handleClearCompleted = async () => {
@@ -14,6 +16,21 @@ export default function ShoppingList() {
       await clearCompletedShoppingItems();
     }
   };
+
+  const getCategoryColor = (catName) => {
+    const found = categories.find((c) => c.name === catName);
+    return found ? found.colorTag : '#6b7280';
+  };
+
+  // Raggruppa gli elementi attivi per macro-gruppo (categoria)
+  const groupedActiveItems = activeItems.reduce((acc, item) => {
+    const cat = item.category || 'Altro';
+    if (!acc[cat]) {
+      acc[cat] = [];
+    }
+    acc[cat].push(item);
+    return acc;
+  }, {});
 
   return (
     <div className="pb-28 max-w-md mx-auto px-4 pt-4">
@@ -33,7 +50,7 @@ export default function ShoppingList() {
         <div className="space-y-6">
           {/* Da Comprare */}
           <div>
-            <div className="flex items-center justify-between mb-2 px-1">
+            <div className="flex items-center justify-between mb-3 px-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                 <ShoppingBag className="w-4 h-4 text-emerald-600" /> Da Comprare ({activeItems.length})
               </h2>
@@ -50,10 +67,51 @@ export default function ShoppingList() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {activeItems.map((item) => (
-                  <ShoppingListItem key={item.id} item={item} />
-                ))}
+              <div className="space-y-5">
+                {Object.entries(groupedActiveItems).map(([catName, itemsInCat]) => {
+                  const catColor = getCategoryColor(catName);
+                  return (
+                    <div
+                      key={catName}
+                      className="rounded-2xl p-3.5 border transition-all"
+                      style={{
+                        backgroundColor: `${catColor}0d`, // Tonalità molto scura integrata col tema
+                        borderColor: `${catColor}66`,      // Bordo LED
+                        boxShadow: `0 0 14px ${catColor}25, 0 0 2px ${catColor}55`, // Effetto LED attorno al macro-gruppo
+                      }}
+                    >
+                      {/* Intestazione Macro Gruppo con LED Glow */}
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0 shadow-sm animate-pulse"
+                            style={{
+                              backgroundColor: catColor,
+                              boxShadow: `0 0 8px ${catColor}`,
+                            }}
+                          />
+                          <h3 className="font-extrabold text-sm uppercase tracking-wide text-gray-900 dark:text-white">
+                            {catName}
+                          </h3>
+                        </div>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/30 text-gray-600 dark:text-gray-300">
+                          {itemsInCat.length}
+                        </span>
+                      </div>
+
+                      {/* Elementi della categoria */}
+                      <div className="space-y-2">
+                        {itemsInCat.map((item) => (
+                          <ShoppingListItem
+                            key={item.id}
+                            item={item}
+                            categoryColor={catColor}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -82,7 +140,11 @@ export default function ShoppingList() {
               {showCompleted && (
                 <div className="space-y-2 opacity-80">
                   {completedItems.map((item) => (
-                    <ShoppingListItem key={item.id} item={item} />
+                    <ShoppingListItem
+                      key={item.id}
+                      item={item}
+                      categoryColor={getCategoryColor(item.category)}
+                    />
                   ))}
                 </div>
               )}

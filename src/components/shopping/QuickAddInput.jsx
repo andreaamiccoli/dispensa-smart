@@ -2,18 +2,21 @@ import React, { useState } from 'react';
 import { Plus, Sparkles } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, addShoppingItem } from '../../db/database';
+import { useCategories } from '../../hooks/useCategories';
 import { UNIT_CONFIG } from '../../utils/unitHelpers';
 
 export default function QuickAddInput() {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [unitType, setUnitType] = useState('unit');
+  const [category, setCategory] = useState('');
   const [selectedPantryItemId, setSelectedPantryItemId] = useState(null);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const pantryItems = useLiveQuery(() => db.pantryItems.toArray()) || [];
+  const { categories } = useCategories();
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -34,6 +37,7 @@ export default function QuickAddInput() {
   const selectSuggestion = (pItem) => {
     setName(pItem.name);
     setUnitType(pItem.unitType);
+    setCategory(pItem.category || '');
     setSelectedPantryItemId(pItem.id);
 
     const conf = UNIT_CONFIG[pItem.unitType];
@@ -47,17 +51,25 @@ export default function QuickAddInput() {
     e.preventDefault();
     if (!name.trim()) return;
 
+    const matchedPantry = selectedPantryItemId
+      ? pantryItems.find((p) => p.id === selectedPantryItemId)
+      : pantryItems.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
+
+    const itemCategory = category || matchedPantry?.category || (categories[0]?.name || 'Altro');
+
     await addShoppingItem({
       name: name.trim(),
       quantity: Math.max(1, Number(quantity) || 1),
       unitType,
-      pantryItemId: selectedPantryItemId,
+      category: itemCategory,
+      pantryItemId: selectedPantryItemId || matchedPantry?.id || null,
       source: 'manual',
     });
 
     setName('');
     setQuantity(1);
     setUnitType('unit');
+    setCategory('');
     setSelectedPantryItemId(null);
     setShowSuggestions(false);
   };
