@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Edit2, Trash2 } from 'lucide-react';
+import { AlertTriangle, Edit2, Trash2, FolderInput } from 'lucide-react';
 import UnitStepper from '../shared/UnitStepper';
 import { updatePantryStock, deletePantryItem } from '../../db/database';
 
-export default function PantryCard({ item, categoryColor, onEdit }) {
+export default function PantryCard({ item, categoryColor, onEdit, onMove }) {
   const [touchStartX, setTouchStartX] = useState(null);
   const [swipingLeft, setSwipingLeft] = useState(false);
 
@@ -65,6 +65,16 @@ export default function PantryCard({ item, categoryColor, onEdit }) {
         />
 
         <div className="flex items-center gap-0.5">
+          {onMove && (
+            <button
+              type="button"
+              onClick={() => onMove(item)}
+              className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Sposta in un'altra cartella"
+            >
+              <FolderInput className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onEdit(item)}

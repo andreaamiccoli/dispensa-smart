@@ -8,8 +8,8 @@ import CategoryCard from './CategoryCard';
 import SubFolderCard from './SubFolderCard';
 import PantryItemForm from './PantryItemForm';
 import SubFolderForm from './SubFolderForm';
+import MoveItemModal from './MoveItemModal';
 import FAB from '../layout/FAB';
-import { seedInitialData } from '../../db/database';
 
 export default function PantryList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,12 +23,13 @@ export default function PantryList() {
 
   // Form Modals
   const [editingItem, setEditingItem] = useState(null);
+  const [movingItem, setMovingItem] = useState(null);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [isFolderFormOpen, setIsFolderFormOpen] = useState(false);
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
 
-  const { items, isLoading: isItemsLoading } = usePantryItems(searchQuery, activeCategory?.name || '');
-  const { categories, isLoading: isCatLoading } = useCategories();
+  const { items } = usePantryItems(searchQuery, activeCategory?.name || '');
+  const { categories } = useCategories();
   const { subFolders } = useSubFolders(activeCategory?.name || null, currentSubFolder?.id || null);
 
   // Filtra i prodotti per il livello corrente se non stiamo cercando
@@ -216,12 +217,14 @@ export default function PantryList() {
               </p>
               <div className="flex flex-col gap-2 max-w-xs mx-auto">
                 <button
+                  type="button"
                   onClick={handleOpenNewItemForm}
                   className="py-2.5 px-4 bg-emerald-600 text-white font-semibold rounded-xl text-sm hover:bg-emerald-700 transition-colors shadow-sm flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" /> Aggiungi Prodotto
                 </button>
                 <button
+                  type="button"
                   onClick={handleOpenNewFolderForm}
                   className="py-2.5 px-4 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold rounded-xl text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-1.5"
                 >
@@ -231,7 +234,7 @@ export default function PantryList() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3.5">
-              {/* Sotto-cartelle (renderizzate per prime nella griglia) */}
+              {/* Sotto-cartelle */}
               {subFolders.map((folder) => (
                 <SubFolderCard
                   key={folder.id}
@@ -248,6 +251,7 @@ export default function PantryList() {
                   item={item}
                   categoryColor={getCategoryColor(item.category)}
                   onEdit={handleEditItem}
+                  onMove={(itemToMove) => setMovingItem(itemToMove)}
                 />
               ))}
             </div>
@@ -301,6 +305,14 @@ export default function PantryList() {
           defaultCategory={activeCategory?.name || 'Altro'}
           parentSubFolderId={currentSubFolder?.id || null}
           onClose={() => setIsFolderFormOpen(false)}
+        />
+      )}
+
+      {/* Modal Spostamento Rapido Prodotto */}
+      {movingItem && (
+        <MoveItemModal
+          item={movingItem}
+          onClose={() => setMovingItem(null)}
         />
       )}
     </div>
