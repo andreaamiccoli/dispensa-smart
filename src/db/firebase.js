@@ -2,12 +2,12 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAPhivhluM-fueTIRgAW9V6PY0yK7jR8u0",
-  authDomain: "dispensa-smart-ad615.firebaseapp.com",
-  projectId: "dispensa-smart-ad615",
-  storageBucket: "dispensa-smart-ad615.firebasestorage.app",
-  messagingSenderId: "520014323149",
-  appId: "1:520014323149:web:7c89766693de43ad437884"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
