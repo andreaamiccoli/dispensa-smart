@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { pushLocalDataToCloud } from './syncService';
 
 export const db = new Dexie('DispensaSmartDB');
 
@@ -48,7 +49,7 @@ db.version(3).stores({
  * o l'auto-remove dalla lista della spesa.
  */
 export async function updatePantryStock(id, newStock) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+  const result = await db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
     const item = await db.pantryItems.get(id);
     if (!item) return;
 
@@ -98,6 +99,9 @@ export async function updatePantryStock(id, newStock) {
       }
     }
   });
+
+  pushLocalDataToCloud();
+  return result;
 }
 
 /**
@@ -116,7 +120,7 @@ export async function adjustPantryStock(id, delta) {
  * Elimina un prodotto dalla dispensa e rimuove automaticamente gli elementi correlati nella lista spesa.
  */
 export async function deletePantryItem(id) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+  const res = await db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
     await db.pantryItems.delete(id);
     const relatedShoppingItems = await db.shoppingList
       .where('pantryItemId')
@@ -128,13 +132,16 @@ export async function deletePantryItem(id) {
       await db.shoppingList.bulkDelete(relatedShoppingItems);
     }
   });
+
+  pushLocalDataToCloud();
+  return res;
 }
 
 /**
  * Check/Uncheck di un elemento della lista spesa.
  */
 export async function toggleShoppingItem(shoppingItemId, isChecked) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+  const res = await db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
     const sItem = await db.shoppingList.get(shoppingItemId);
     if (!sItem) return;
 
@@ -155,13 +162,16 @@ export async function toggleShoppingItem(shoppingItemId, isChecked) {
       }
     }
   });
+
+  pushLocalDataToCloud();
+  return res;
 }
 
 /**
  * Aggiunge un nuovo prodotto in dispensa
  */
 export async function addPantryItem(itemData) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+  const id = await db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
     const now = new Date().toISOString();
     const newItem = {
       name: itemData.name.trim(),
@@ -177,12 +187,12 @@ export async function addPantryItem(itemData) {
       updatedAt: now,
     };
 
-    const id = await db.pantryItems.add(newItem);
+    const newId = await db.pantryItems.add(newItem);
 
     if (newItem.autoAdd !== false && newItem.currentStock <= newItem.minThreshold) {
       const quantityToBuy = Math.max(1, newItem.fullStock - newItem.currentStock);
       await db.shoppingList.add({
-        pantryItemId: id,
+        pantryItemId: newId,
         name: newItem.name,
         category: newItem.category,
         unitType: newItem.unitType,
@@ -193,15 +203,18 @@ export async function addPantryItem(itemData) {
       });
     }
 
-    return id;
+    return newId;
   });
+
+  pushLocalDataToCloud();
+  return id;
 }
 
 /**
  * Aggiorna i dettagli di un prodotto in dispensa
  */
 export async function updatePantryItemDetails(id, itemData) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
+  const res = await db.transaction('rw', db.pantryItems, db.shoppingList, async () => {
     const now = new Date().toISOString();
     const updatedFields = {
       name: itemData.name.trim(),
@@ -218,7 +231,6 @@ export async function updatePantryItemDetails(id, itemData) {
 
     await db.pantryItems.update(id, updatedFields);
 
-    // Se cambia categoria o nome, aggiorna anche le voci della shoppingList collegate
     const relatedShoppingItems = await db.shoppingList.where('pantryItemId').equals(id).toArray();
     for (const rel of relatedShoppingItems) {
       await db.shoppingList.update(rel.id, {
@@ -229,6 +241,9 @@ export async function updatePantryItemDetails(id, itemData) {
 
     await updatePantryStock(id, updatedFields.currentStock);
   });
+
+  pushLocalDataToCloud();
+  return res;
 }
 
 /**
@@ -236,27 +251,29 @@ export async function updatePantryItemDetails(id, itemData) {
  */
 export async function addSubFolder({ name, category, parentSubFolderId = null }) {
   const now = new Date().toISOString();
-  return db.subFolders.add({
+  const id = await db.subFolders.add({
     name: name.trim(),
     category: category || 'Altro',
     parentSubFolderId: parentSubFolderId ? Number(parentSubFolderId) : null,
     createdAt: now,
   });
+  pushLocalDataToCloud();
+  return id;
 }
 
 export async function updateSubFolder(id, { name }) {
-  return db.subFolders.update(id, { name: name.trim() });
+  const res = await db.subFolders.update(id, { name: name.trim() });
+  pushLocalDataToCloud();
+  return res;
 }
 
 export async function deleteSubFolder(id) {
-  return db.transaction('rw', db.pantryItems, db.shoppingList, db.subFolders, async () => {
-    // Trova tutte le sotto-cartelle figlie ed eliminale ricorsivamente
+  const res = await db.transaction('rw', db.pantryItems, db.shoppingList, db.subFolders, async () => {
     const childFolders = await db.subFolders.where('parentSubFolderId').equals(id).toArray();
     for (const child of childFolders) {
       await deleteSubFolder(child.id);
     }
 
-    // Trova i prodotti contenuti in questa cartella ed eliminali (o scollega)
     const itemsInFolder = await db.pantryItems.where('subFolderId').equals(id).toArray();
     for (const item of itemsInFolder) {
       await deletePantryItem(item.id);
@@ -264,6 +281,9 @@ export async function deleteSubFolder(id) {
 
     await db.subFolders.delete(id);
   });
+
+  pushLocalDataToCloud();
+  return res;
 }
 
 /**
@@ -271,7 +291,7 @@ export async function deleteSubFolder(id) {
  */
 export async function addShoppingItem(itemData) {
   const now = new Date().toISOString();
-  return db.shoppingList.add({
+  const id = await db.shoppingList.add({
     pantryItemId: itemData.pantryItemId || null,
     name: itemData.name.trim(),
     category: itemData.category || 'Altro',
@@ -281,6 +301,8 @@ export async function addShoppingItem(itemData) {
     addedAt: now,
     source: itemData.source || 'manual',
   });
+  pushLocalDataToCloud();
+  return id;
 }
 
 /**
@@ -290,7 +312,9 @@ export async function clearCompletedShoppingItems() {
   const completedIds = await db.shoppingList
     .filter((item) => !!item.checked)
     .primaryKeys();
-  return db.shoppingList.bulkDelete(completedIds);
+  const res = await db.shoppingList.bulkDelete(completedIds);
+  pushLocalDataToCloud();
+  return res;
 }
 
 /**
@@ -372,4 +396,6 @@ export async function seedInitialData() {
       step: 250,
     });
   }
+
+  pushLocalDataToCloud();
 }

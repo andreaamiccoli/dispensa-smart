@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Download, Upload, Database, RefreshCw, Trash2, Plus, Tag, ZoomIn, ZoomOut, Eye } from 'lucide-react';
+import { Download, Upload, Database, RefreshCw, Trash2, Plus, Tag, ZoomIn, ZoomOut, Eye, Users, KeyRound } from 'lucide-react';
 import { db, seedInitialData } from '../../db/database';
 import { useCategories } from '../../hooks/useCategories';
+import ShareCodeModal from './ShareCodeModal';
+import { removeShareCode } from '../../db/syncService';
 
-export default function BackupPanel() {
+export default function BackupPanel({ shareCode, onChangeCode }) {
   const [statusMsg, setStatusMsg] = useState(null);
+  const [showCodeModal, setShowCodeModal] = useState(false);
   const { categories, addCategory, deleteCategory } = useCategories();
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#3b82f6');
@@ -123,6 +126,50 @@ export default function BackupPanel() {
             OK
           </button>
         </div>
+      )}
+
+      {/* Dispensa Condivisa / Codice Stanza */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-emerald-500/30 dark:border-emerald-500/20 shadow-sm relative overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white">Dispensa Condivisa</h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Sincronizzazione in tempo reale</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCodeModal(true)}
+            className="px-3 py-1.5 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors border border-emerald-200 dark:border-emerald-800"
+          >
+            Cambia codice
+          </button>
+        </div>
+
+        <div className="bg-gray-50 dark:bg-gray-900/60 p-3 rounded-xl border border-gray-200 dark:border-gray-700/60 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Codice attuale:</span>
+          </div>
+          <span className="font-mono font-black tracking-wider text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 shadow-2xs">
+            {shareCode || 'Nessuno'}
+          </span>
+        </div>
+      </div>
+
+      {showCodeModal && (
+        <ShareCodeModal
+          currentCode={shareCode}
+          onCodeSet={(newCode) => {
+            if (onChangeCode) onChangeCode(newCode);
+            setShowCodeModal(false);
+            setStatusMsg({ type: 'success', text: `Codice aggiornato a: ${newCode}` });
+          }}
+          onClose={() => setShowCodeModal(false)}
+        />
       )}
 
       {/* Accessibilità e Zoom Testo */}
